@@ -9,6 +9,9 @@ from email.mime.text import MIMEText
 
 load_dotenv()
 
+sms_queue = os.environ["RBT_MQ_SMSQ"]
+email_queue = os.environ["RBT_MQ_EMLQ"]
+
 
 def log(output: str):
     with open("log.txt", "a+", encoding="UTF-8") as f:
@@ -67,6 +70,7 @@ def on_sms_receive(ch, method, props, body: bytes):
         ch.basic_ack(method.delivery_tag)
         log("Message acknowledged")
     else:
+        ch.basic_nack(method.delivery_tag, requeue=True)
         print("Unable to send message")
         log("Unable to send message")
 
@@ -99,6 +103,7 @@ def on_email_receive(ch, method, props, body: bytes):
         ch.basic_ack(method.delivery_tag)
         log("Email Message acknowledged")
     else:
+        ch.basic_nack(method.delivery_tag, requeue=True)
         print("Unable to send email")
         log("Unable to send email")
 
@@ -111,13 +116,13 @@ try:
         pika.ConnectionParameters(os.environ["RBT_MQ"], credentials=credentials)
     )
     channel = connection.channel()
-    channel.queue_declare(queue="test", durable=True)
-    channel.queue_declare(queue="email", durable=True)
+    channel.queue_declare(queue=sms_queue, durable=True)
+    channel.queue_declare(queue=email_queue, durable=True)
     channel.basic_consume(
-        queue="test", auto_ack=False, on_message_callback=on_sms_receive
+        queue=sms_queue, auto_ack=False, on_message_callback=on_sms_receive
     )
     channel.basic_consume(
-        queue="email", auto_ack=False, on_message_callback=on_email_receive
+        queue=email_queue, auto_ack=False, on_message_callback=on_email_receive
     )
 
     print(" [*] Waiting for messages")
