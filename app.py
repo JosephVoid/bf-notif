@@ -2,20 +2,49 @@ import os, sys, ast
 import pika
 import time
 from dotenv import load_dotenv
+import requests
+from requests.auth import HTTPBasicAuth
 
 load_dotenv()
 
+def log (output: str):
+    with open('log.txt', 'a+', encoding = 'UTF-8') as f:
+        f.writelines(time.ctime(time.time())+" : "+ f'{output}'+"\n")
+
+def send_sms (to: str, msg: str) -> bool:
+    payload = {"message": msg, "phoneNumbers":[to]}
+
+    try:
+        response = requests.post(os.environ['SMS_URL'], auth=HTTPBasicAuth(os.environ['SMS_USR'], os.environ['SMS_PSS']), data=payload)
+        log(str(response.status_code)+'-:-'+response.text)
+        if (response.status_code >= 200 or response.status_code < 210):
+            log(payload)
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(e)
+        log(e)
+        return False
+
+def send_email (to: str, body: str, subject: str):
+    pass
+
 def on_recieve (ch, method, props, body: bytes):
     # Capture received message to file
-    with open('log.txt', 'a+', encoding = 'UTF-8') as f:
-        f.writelines(time.ctime(time.time())+" : "+ f'{body}'+"\n")
-    
+    log(body)
+
     # Parse the byte to a dict
     msg = ast.literal_eval(body.decode("UTF-8"))
     print(time.ctime(time.time())+" : to-> "+ msg['to'] +"   msg-> "+ msg['message'])
-
-    # Acknowledge the message
-    ch.basic_ack(method.delivery_tag)
+    log("Received : to-> "+ msg['to'] +"   msg-> "+ msg['message'])
+    if (send_sms(msg['to'], msg['message'])):
+        # Acknowledge the message
+        ch.basic_ack(method.delivery_tag)
+        log("Message acknowledged")
+    else:
+        print("Unable to send message")
+        log("Unable to send message")
 
 
 try:
