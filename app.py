@@ -1,12 +1,22 @@
-import os, sys
+import os, sys, ast
 import pika
 import time
 from dotenv import load_dotenv
 
 load_dotenv()
 
-def on_recieve (ch, method, props, body):
-    print(time.ctime(time.time())+" : "+ f'{body}')
+def on_recieve (ch, method, props, body: bytes):
+    # Capture received message to file
+    with open('log.txt', 'a+', encoding = 'UTF-8') as f:
+        f.writelines(time.ctime(time.time())+" : "+ f'{body}'+"\n")
+    
+    # Parse the byte to a dict
+    msg = ast.literal_eval(body.decode("UTF-8"))
+    print(time.ctime(time.time())+" : to-> "+ msg['to'] +"   msg-> "+ msg['message'])
+
+    # Acknowledge the message
+    ch.basic_ack(method.delivery_tag)
+
 
 try:
 
@@ -15,7 +25,7 @@ try:
     channel  = connection.channel()
     channel.queue_declare(queue = 'test', durable = True)
 
-    channel.basic_consume(queue = 'test', auto_ack = True, on_message_callback = on_recieve)
+    channel.basic_consume(queue = 'test', auto_ack = False, on_message_callback = on_recieve)
 
     print(' [*] Waiting for messages')
     channel.start_consuming()
