@@ -1,5 +1,6 @@
 import os, sys, ast
 import pika
+from pika import exceptions
 import time
 import smtplib
 from dotenv import load_dotenv
@@ -128,9 +129,15 @@ try:
     print(" [*] Waiting for messages")
     channel.start_consuming()
 
-except Exception as e:
+except RuntimeError as e:
     print(e)
-
+except (
+    exceptions.AMQPChannelError,
+    exceptions.AMQPConnectionError,
+    exceptions.ReentrancyError,
+    exceptions.ChannelClosed,
+) as e:
+    print(e)
 except KeyboardInterrupt:
     try:
         sys.exit()
