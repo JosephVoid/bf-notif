@@ -6,7 +6,8 @@ import smtplib
 from dotenv import load_dotenv
 import requests
 from requests.auth import HTTPBasicAuth
-from email.mime.text import MIMEText
+from email.message import EmailMessage
+from email.utils import formataddr
 
 load_dotenv()
 
@@ -20,7 +21,8 @@ def log(output: str):
 
 
 def send_sms(to: str, msg: str) -> bool:
-    payload = {"message": msg, "phoneNumbers": [to]}
+    form_msg = u'{}\u2029\u2029Buyers First'.format(msg)
+    payload = {"message": form_msg, "phoneNumbers": [to]}
     try:
         response = requests.post(
             os.environ["SMS_URL"],
@@ -41,15 +43,16 @@ def send_sms(to: str, msg: str) -> bool:
 
 def send_email(to: str, body: str, subject: str):
     try:
-        email_msg = MIMEText(f"{body}", "plain")
-        email_msg["Subject"] = subject
-        email_msg["From"] = os.environ["EML_USR"]
+        message = EmailMessage()
+        message["Subject"] = subject
+        message["From"] = formataddr(('Buyers First', os.environ["EML_USR"]))
+        message["To"] = to
+        message.set_content(generate_email(subject, body), subtype='html')
 
         with smtplib.SMTP(os.environ["EML_SRV"], int(os.environ["EML_PRT"])) as smtp:
-            os.environ["EML_SRV"], int(os.environ["EML_PRT"])
             smtp.starttls()
             smtp.login(os.environ["EML_USR"], os.environ["EML_PSS"])
-            smtp.sendmail(os.environ["EML_USR"], to, email_msg.as_string())
+            smtp.send_message(message)
             return True
     except Exception as e:
         print(e)
@@ -107,6 +110,13 @@ def on_email_receive(ch, method, props, body: bytes):
         ch.basic_nack(method.delivery_tag, requeue=True)
         print("Unable to send email")
         log("Unable to send email")
+
+
+def generate_email(heading, body_text):
+    with open('index.html') as f: 
+        html = f.read()
+        final_str = html.replace('*Heading*', heading).replace('*Text*', body_text)
+        return final_str
 
 
 try:
