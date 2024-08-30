@@ -21,7 +21,7 @@ def log(output: str):
 
 
 def send_sms(to: str, msg: str) -> bool:
-    form_msg = u'{}\u2029\u2029Buyers First'.format(msg)
+    form_msg = u'{}\u000a - Buyers First'.format(msg)
     payload = {"message": form_msg, "phoneNumbers": [to]}
     try:
         response = requests.post(
