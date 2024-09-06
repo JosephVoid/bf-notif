@@ -150,12 +150,12 @@ def send_telegram(title: str, description: str, photo: str, avg_price: float, li
     try:
         if (photo == ''):
             response = requests.post(
-                f'https://api.telegram.org/bot{os.environ['BOT_TOKEN']}/sendMessage',
+                f'https://api.telegram.org/bot{os.environ["BOT_TOKEN"]}/sendMessage',
                 data=body,
             )
         else:
             response = requests.post(
-                f'https://api.telegram.org/bot{os.environ['BOT_TOKEN']}/sendPhoto',
+                f'https://api.telegram.org/bot{os.environ["BOT_TOKEN"]}/sendPhoto',
                 data=body,
             )
         log(str(response.status_code) + "-:-" + response.text)
