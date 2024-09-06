@@ -13,7 +13,7 @@ load_dotenv()
 
 sms_queue = os.environ["RBT_MQ_SMSQ"]
 email_queue = os.environ["RBT_MQ_EMLQ"]
-
+telegram_queue = os.environ["RBT_MQ_TGMQ"]
 
 def log(output: str):
     with open("log.txt", "a+", encoding="UTF-8") as f:
@@ -112,12 +112,62 @@ def on_email_receive(ch, method, props, body: bytes):
         log("Unable to send email")
 
 
+def on_telegram_receive(ch, method, props, body: bytes):
+    # Capture received message to file
+    log(body)
+
+    # Parse the byte to a dict
+    msg = ast.literal_eval(body.decode("UTF-8"))
+    print(
+        time.ctime(time.time()) + " : title-> " + msg["title"] + "   desc-> " + msg["desc"] + "   photo-> " + msg["photo"]+ "   price-> " + msg["price"]+ "   url-> " + msg["url"]
+    )
+    log("Received : title-> " + msg["title"] + "   desc-> " + msg["desc"] + "   photo-> " + msg["photo"]+ "   price-> " + msg["price"]+ "   url-> " + msg["url"])
+    if send_telegram(title=msg["title"], description=msg["desc"], photo=msg["photo"], avg_price=msg["price"], link=msg["url"]):
+        # Acknowledge the message
+        ch.basic_ack(method.delivery_tag)
+        log("Message acknowledged")
+    else:
+        ch.basic_nack(method.delivery_tag, requeue=True)
+        print("Unable to send telegram message")
+        log("Unable to send telegram message")
+
+
 def generate_email(heading, body_text):
     with open('index.html') as f: 
         html = f.read()
         final_str = html.replace('*Heading*', heading).replace('*Text*', body_text)
         return final_str
 
+
+def send_telegram(title: str, description: str, photo: str, avg_price: float, link: str) -> bool:
+    body = {}
+    body['text'] = f'Someone wants: \n__*{title}*__ \n{description} \nPrice: *{str(avg_price)}* \nGo here: {link}'
+    body['caption'] = f'Someone wants: \n__*{title}*__ \n{description}\nPrice: *{str(avg_price)}* \nGo here: {link}'
+    body['chat_id'] = os.environ["CHNL_ADDR"]
+    body['parse_mode'] = 'markdown'
+    body['photo'] = photo
+
+    try:
+        if (photo == ''):
+            response = requests.post(
+                f'https://api.telegram.org/bot{os.environ['BOT_TOKEN']}/sendMessage',
+                data=body,
+            )
+        else:
+            response = requests.post(
+                f'https://api.telegram.org/bot{os.environ['BOT_TOKEN']}/sendPhoto',
+                data=body,
+            )
+        log(str(response.status_code) + "-:-" + response.text)
+        if response.status_code >= 200 or response.status_code < 210:
+            log(body)
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(e)
+        log(e)
+        return False
 
 try:
     credentials = pika.PlainCredentials(
@@ -135,7 +185,9 @@ try:
     channel.basic_consume(
         queue=email_queue, auto_ack=False, on_message_callback=on_email_receive
     )
-
+    channel.basic_consume(
+        queue=telegram_queue, auto_ack=False, on_message_callback=on_telegram_receive
+    )
     print(" [*] Waiting for messages")
     channel.start_consuming()
 
