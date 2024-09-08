@@ -141,8 +141,8 @@ def generate_email(heading, body_text):
 
 def send_telegram(title: str, description: str, photo: str, avg_price: float, link: str) -> bool:
     body = {}
-    body['text'] = f'Someone wants: \n__*{title}*__ \n{description} \nPrice: *{str(avg_price)}* \nGo here: {link}'
-    body['caption'] = f'Someone wants: \n__*{title}*__ \n{description}\nPrice: *{str(avg_price)}* \nGo here: {link}'
+    body['text'] = f'💙 Someone wants 💙: \n\n__*{title}*__ \n{description} \n\n💰Price: *{str(avg_price)}* \nGo here👉 {link}'
+    body['caption'] = f'💙 Someone wants 💙: \n\n__*{title}*__ \n{description}\n\n💰Price: *{str(avg_price)}* \nGo here👉 {link}'
     body['chat_id'] = os.environ["CHNL_ADDR"]
     body['parse_mode'] = 'markdown'
     body['photo'] = photo
