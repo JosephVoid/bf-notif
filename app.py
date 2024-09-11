@@ -115,14 +115,13 @@ def on_email_receive(ch, method, props, body: bytes):
 def on_telegram_receive(ch, method, props, body: bytes):
     # Capture received message to file
     log(body)
-
     # Parse the byte to a dict
-    msg = ast.literal_eval(body.decode("UTF-8"))
+    msg = ast.literal_eval(body.decode("UTF-8").replace('\\n', ' '))
     print(
-        time.ctime(time.time()) + " : title-> " + msg["title"].replace('\n', ' ') + "   desc-> " + msg["desc"].replace('\n', ' ') + "   photo-> " + msg["photo"]+ "   price-> " + msg["price"]+ "   url-> " + msg["url"]
+        time.ctime(time.time()) + " : title-> " + msg["title"] + "   desc-> " + msg["desc"] + "   photo-> " + msg["photo"]+ "   price-> " + msg["price"]+ "   url-> " + msg["url"]
     )
-    log("Received : title-> " + msg["title"].replace('\n', ' ') + "   desc-> " + msg["title"].replace('\n', ' ') + "   photo-> " + msg["photo"]+ "   price-> " + msg["price"]+ "   url-> " + msg["url"])
-    if send_telegram(title=msg["title"].replace('\n', ' '), description=msg["title"].replace('\n', ' '), photo=msg["photo"], avg_price=msg["price"], link=msg["url"]):
+    log("Received : title-> " + msg["title"] + "   desc-> " + msg["title"] + "   photo-> " + msg["photo"]+ "   price-> " + msg["price"]+ "   url-> " + msg["url"])
+    if send_telegram(title=msg["title"], description=msg["title"], photo=msg["photo"], avg_price=msg["price"], link=msg["url"]):
         # Acknowledge the message
         ch.basic_ack(method.delivery_tag)
         log("Message acknowledged")
