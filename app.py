@@ -8,6 +8,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 from email.message import EmailMessage
 from email.utils import formataddr
+import json
 
 load_dotenv()
 
@@ -116,7 +117,7 @@ def on_telegram_receive(ch, method, props, body: bytes):
     # Capture received message to file
     log(body)
     # Parse the byte to a dict
-    msg = ast.literal_eval(body.decode("UTF-8").replace('\\n', ' '))
+    msg = json.loads(body.decode("UTF-8").replace('\\n', ' '))
     print(
         time.ctime(time.time()) + " : title-> " + msg["title"] + "   desc-> " + msg["desc"] + "   photo-> " + msg["photo"]+ "   price-> " + msg["price"]+ "   url-> " + msg["url"]
     )
