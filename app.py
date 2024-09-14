@@ -117,7 +117,7 @@ def on_telegram_receive(ch, method, props, body: bytes):
     # Capture received message to file
     log(body)
     # Parse the byte to a dict
-    msg = json.loads(body.decode("UTF-8").replace('\\n', ' '))
+    msg = json.loads(body.decode("UTF-8").replace('\\n', ' '), strict=False)
     print(
         time.ctime(time.time()) + " : title-> " + msg["title"] + "   desc-> " + msg["desc"] + "   photo-> " + msg["photo"]+ "   price-> " + msg["price"]+ "   url-> " + msg["url"]
     )
