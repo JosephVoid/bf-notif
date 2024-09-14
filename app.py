@@ -55,6 +55,9 @@ def send_email(to: str, body: str, subject: str):
             smtp.login(os.environ["EML_USR"], os.environ["EML_PSS"])
             smtp.send_message(message)
             return True
+    except smtplib.SMTPRecipientsRefused:
+        print("The recipient email address was refused: ", to)
+        return True
     except Exception as e:
         print(e)
         return False
