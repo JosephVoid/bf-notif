@@ -9,6 +9,7 @@ from requests.auth import HTTPBasicAuth
 from email.message import EmailMessage
 from email.utils import formataddr
 import json
+import re
 
 load_dotenv()
 
@@ -66,9 +67,12 @@ def send_email(to: str, body: str, subject: str):
 def on_sms_receive(ch, method, props, body: bytes):
     # Capture received message to file
     log(body)
-
+    # Decode the body
+    decoded_body = body.decode("UTF-8")
+    # Remove control characters (e.g., newlines, tabs, etc.)
+    cleaned_body = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', decoded_body)
     # Parse the byte to a dict
-    msg = ast.literal_eval(body.decode("UTF-8"))
+    msg = ast.literal_eval(cleaned_body)
     print(
         time.ctime(time.time()) + " : to-> " + msg["to"] + "   msg-> " + msg["message"]
     )
