@@ -44,13 +44,29 @@ def send_sms(to: str, msg: str) -> bool:
         return False
 
 
+def formatPhone(phone: str) -> str:
+    phone = phone.lstrip("+")
+    if phone.startswith("0"):
+        return "251" + phone[1:]
+    elif phone.startswith("251"):
+        return phone
+    else:
+        return "251" + phone
+
+
 def send_sms_infbp(to: str, msg: str) -> bool:
     form_msg = "{}\u000a - Buyers First".format(msg)
-    payload = {
-        "messages": [
-            {"destinations": [{"to": to}], "from": "447491163443", "text": form_msg}
-        ]
-    }
+    payload = json.dumps(
+        {
+            "messages": [
+                {
+                    "destinations": [{"to": formatPhone(to)}],
+                    "from": "447491163443",
+                    "text": form_msg,
+                }
+            ]
+        }
+    )
     try:
         response = requests.post(
             os.environ["INFBP_SMS_URL"],
