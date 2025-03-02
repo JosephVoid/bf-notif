@@ -17,13 +17,14 @@ sms_queue = os.environ["RBT_MQ_SMSQ"]
 email_queue = os.environ["RBT_MQ_EMLQ"]
 telegram_queue = os.environ["RBT_MQ_TGMQ"]
 
+
 def log(output: str):
     with open("log.txt", "a+", encoding="UTF-8") as f:
         f.writelines(time.ctime(time.time()) + " : " + f"{output}" + "\n")
 
 
 def send_sms(to: str, msg: str) -> bool:
-    form_msg = u'{}\u000a - Buyers First'.format(msg)
+    form_msg = "{}\u000a - Buyers First".format(msg)
     payload = {"message": form_msg, "phoneNumbers": [to]}
     try:
         response = requests.post(
@@ -43,13 +44,42 @@ def send_sms(to: str, msg: str) -> bool:
         return False
 
 
+def send_sms_infbp(to: str, msg: str) -> bool:
+    form_msg = "{}\u000a - Buyers First".format(msg)
+    payload = {
+        "messages": [
+            {"destinations": [{"to": to}], "from": "447491163443", "text": form_msg}
+        ]
+    }
+    try:
+        response = requests.post(
+            os.environ["INFBP_SMS_URL"],
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": "App " + os.environ["INFBP_API_KEY"],
+                "Accept": "application/json",
+            },
+            data=payload,
+        )
+        log(str(response.status_code) + "-:-" + response.text)
+        if response.status_code >= 200 or response.status_code < 210:
+            log(payload)
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(e)
+        log(e)
+        return False
+
+
 def send_email(to: str, body: str, subject: str):
     try:
         message = EmailMessage()
         message["Subject"] = subject
-        message["From"] = formataddr(('Buyers First', os.environ["EML_USR"]))
+        message["From"] = formataddr(("Buyers First", os.environ["EML_USR"]))
         message["To"] = to
-        message.set_content(generate_email(subject, body), subtype='html')
+        message.set_content(generate_email(subject, body), subtype="html")
 
         with smtplib.SMTP(os.environ["EML_SRV"], int(os.environ["EML_PRT"])) as smtp:
             smtp.starttls()
@@ -70,14 +100,18 @@ def on_sms_receive(ch, method, props, body: bytes):
     # Decode the body
     decoded_body = body.decode("UTF-8")
     # Remove control characters (e.g., newlines, tabs, etc.)
-    cleaned_body = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', decoded_body)
+    cleaned_body = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", decoded_body)
     # Parse the byte to a dict
     msg = ast.literal_eval(cleaned_body)
     print(
         time.ctime(time.time()) + " : to-> " + msg["to"] + "   msg-> " + msg["message"]
     )
     log("Received : to-> " + msg["to"] + "   msg-> " + msg["message"])
-    if send_sms(msg["to"], msg["message"]):
+    if send_sms_infbp(msg["to"], msg["message"]):
+        # Acknowledge the message
+        ch.basic_ack(method.delivery_tag)
+        log("Message acknowledged INFBP")
+    elif send_sms(msg["to"], msg["message"]):
         # Acknowledge the message
         ch.basic_ack(method.delivery_tag)
         log("Message acknowledged")
@@ -124,12 +158,39 @@ def on_telegram_receive(ch, method, props, body: bytes):
     # Capture received message to file
     log(body)
     # Parse the byte to a dict
-    msg = json.loads(body.decode("UTF-8").replace('\\n', ' '), strict=False)
+    msg = json.loads(body.decode("UTF-8").replace("\\n", " "), strict=False)
     print(
-        time.ctime(time.time()) + " : title-> " + msg["title"] + "   desc-> " + msg["desc"] + "   photo-> " + msg["photo"]+ "   price-> " + msg["price"]+ "   url-> " + msg["url"]
+        time.ctime(time.time())
+        + " : title-> "
+        + msg["title"]
+        + "   desc-> "
+        + msg["desc"]
+        + "   photo-> "
+        + msg["photo"]
+        + "   price-> "
+        + msg["price"]
+        + "   url-> "
+        + msg["url"]
     )
-    log("Received : title-> " + msg["title"] + "   desc-> " + msg["desc"] + "   photo-> " + msg["photo"]+ "   price-> " + msg["price"]+ "   url-> " + msg["url"])
-    if send_telegram(title=msg["title"], description=msg["desc"], photo=msg["photo"], avg_price=msg["price"], link=msg["url"]):
+    log(
+        "Received : title-> "
+        + msg["title"]
+        + "   desc-> "
+        + msg["desc"]
+        + "   photo-> "
+        + msg["photo"]
+        + "   price-> "
+        + msg["price"]
+        + "   url-> "
+        + msg["url"]
+    )
+    if send_telegram(
+        title=msg["title"],
+        description=msg["desc"],
+        photo=msg["photo"],
+        avg_price=msg["price"],
+        link=msg["url"],
+    ):
         # Acknowledge the message
         ch.basic_ack(method.delivery_tag)
         log("Message acknowledged")
@@ -140,22 +201,28 @@ def on_telegram_receive(ch, method, props, body: bytes):
 
 
 def generate_email(heading, body_text):
-    with open('index.html') as f: 
+    with open("index.html") as f:
         html = f.read()
-        final_str = html.replace('*Heading*', heading).replace('*Text*', body_text)
+        final_str = html.replace("*Heading*", heading).replace("*Text*", body_text)
         return final_str
 
 
-def send_telegram(title: str, description: str, photo: str, avg_price: float, link: str) -> bool:
+def send_telegram(
+    title: str, description: str, photo: str, avg_price: float, link: str
+) -> bool:
     body = {}
-    body['text'] = f'💙 Someone wants 💙: \n\n__*{title}*__ \n{description} \n\n💰Price: *{str(avg_price)}* \nGo here👉 {link}'
-    body['caption'] = f'💙 Someone wants 💙: \n\n__*{title}*__ \n{description}\n\n💰Price: *{str(avg_price)}* \nGo here👉 {link}'
-    body['chat_id'] = os.environ["CHNL_ADDR"]
-    body['parse_mode'] = 'markdown'
-    body['photo'] = photo
+    body["text"] = (
+        f"💙 Someone wants 💙: \n\n__*{title}*__ \n{description} \n\n💰Price: *{str(avg_price)}* \nGo here👉 {link}"
+    )
+    body["caption"] = (
+        f"💙 Someone wants 💙: \n\n__*{title}*__ \n{description}\n\n💰Price: *{str(avg_price)}* \nGo here👉 {link}"
+    )
+    body["chat_id"] = os.environ["CHNL_ADDR"]
+    body["parse_mode"] = "markdown"
+    body["photo"] = photo
 
     try:
-        if (photo == ''):
+        if photo == "":
             response = requests.post(
                 f'https://api.telegram.org/bot{os.environ["BOT_TOKEN"]}/sendMessage',
                 data=body,
@@ -175,6 +242,7 @@ def send_telegram(title: str, description: str, photo: str, avg_price: float, li
         print(e)
         log(e)
         return False
+
 
 try:
     credentials = pika.PlainCredentials(
